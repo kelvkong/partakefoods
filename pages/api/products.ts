@@ -13,11 +13,13 @@ export default async function handler(
     const res = await axios.get("https://partakefoods.com/collections/all");
     const pageHtml = res.data;
     const $ = cheerio.load(pageHtml);
+    const idSet = new Set<string>();
 
     $(".collection-view-wrap").each((i, elm) => {
-      /* const id =
+      const id =
         $(elm).find(".details > div").attr("data-bv-product-id") ||
-        `${Date.now() + i}`; */
+        `${Date.now() + i}`;
+      if (idSet.has(id)) return;
       const image =
         $(elm).find("img").attr("data-src") ||
         $(elm).find("img").attr("data-srcset") ||
@@ -28,13 +30,14 @@ export default async function handler(
       const rating = $(elm).find(".bv_text").text();
       const priceMatches = price.match(/\d+/);
       productList.push({
-        id: title,
+        id,
         image: `https:${image}`.replace('{width}', '320') || 'https://cdn.shopify.com/s/files/1/0012/2296/7353/products/crunchyvarietypackcopy_360x.png?v=1606858800',
         tag: !!tag ? "BEST SELLER" : undefined,
         title,
         price: priceMatches ? parseFloat(priceMatches[0]) : 99,
         // rating,
       });
+      idSet.add(id);
     });
   } catch (err) {
     console.error(err);

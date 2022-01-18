@@ -1,26 +1,25 @@
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import { useUpdateAtom } from "jotai/utils";
-import { useRouter } from "next/router";
+import { useAtom } from "jotai";
 import { useCallback } from "react";
-import { productIdsInCartAtom } from "../../atom/cart";
+import { shoppingCartItemListAtom } from "../../atom/cart";
 import { ProductItem } from "../../components/ProductItem/ProductItem";
 import useGetProductionInformation from "../../hook/useGetProductionInformation";
 
 export function ProductList() {
   const { data } = useGetProductionInformation();
-  const router = useRouter();
-  const setProductIdsInCart = useUpdateAtom(productIdsInCartAtom);
+  const [shoppingCartItemList, setShoppingCartItemList] = useAtom(
+    shoppingCartItemListAtom
+  );
   const onClick = useCallback(
     (id: string) => {
-      setProductIdsInCart((ids) => {
-        ids.push(id);
-        return ids;
+      setShoppingCartItemList((items) => {
+        const arr = [...items, { id, quantity: 1 }];
+        return arr;
       });
-      router.push("/cart");
     },
-    [setProductIdsInCart, router]
+    [setShoppingCartItemList]
   );
   return (
     <Box display="flex" alignItems="center" flexDirection="column">
@@ -35,6 +34,11 @@ export function ProductList() {
                 title={item.title}
                 price={`$${item.price}`}
                 onClick={() => onClick(item.id)}
+                disabled={
+                  shoppingCartItemList.findIndex(
+                    (cartItem) => cartItem.id === item.id
+                  ) !== -1
+                }
               />
             </Grid>
           );

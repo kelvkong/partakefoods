@@ -1,6 +1,7 @@
 import { atomWithStorage } from "jotai/utils";
+import { ShoppingCartItem } from "../types/cart";
 
-export const productIdsInCartAtom = atomWithStorage<string[]>(
-  "productIdsInCart",
+export const shoppingCartItemListAtom = atomWithStorage<ShoppingCartItem[]>(
+  "ShoppingCartItemList",
   []
 );

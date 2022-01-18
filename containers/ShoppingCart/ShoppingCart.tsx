@@ -9,37 +9,80 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import { useAtomValue, useResetAtom } from "jotai/utils";
+import { useAtom } from "jotai";
+import { useResetAtom } from "jotai/utils";
 import { useRouter } from "next/router";
 import * as React from "react";
 import { useCallback, useMemo } from "react";
-import { productIdsInCartAtom } from "../../atom/cart";
+import { shoppingCartItemListAtom } from "../../atom/cart";
 import { ProductTableCell } from "../../components/ShoppingCartItem/ProductTableCell/ProductTableCell";
+import { QuantityTableCell } from "../../components/ShoppingCartItem/QuantityTableCell/QuantityTableCell";
 import useGetProductionInformation from "../../hook/useGetProductionInformation";
+import { ShoppingCartItem } from "../../types/cart";
+
+interface ShoppingCartItemWithDetail {
+  id: string;
+  title: string;
+  image: string;
+  price: number;
+  quantity: number;
+  total: number;
+}
+
 export function ShoppingCart() {
   const { data } = useGetProductionInformation();
   const router = useRouter();
-  const productIdsInCart = useAtomValue(productIdsInCartAtom);
-  const resetProductIdsInCart = useResetAtom(productIdsInCartAtom);
-  const cartData = useMemo(() => {
-    const idSet = new Set(productIdsInCart);
-    return (data || []).filter((item) => idSet.has(item.id));
-  }, [data, productIdsInCart]);
+  const [shoppingCartItemList, setShoppingCartItemList] = useAtom(
+    shoppingCartItemListAtom
+  );
+  const resetShoppingCartItemList = useResetAtom(shoppingCartItemListAtom);
+  const cartData: ShoppingCartItemWithDetail[] = useMemo(() => {
+    const cartMap = new Map<string, ShoppingCartItem>();
+    for (const item of shoppingCartItemList) {
+      cartMap.set(item.id, item);
+    }
+    return (data || [])
+      .filter((item) => cartMap.has(item.id))
+      .map((item) => {
+        const cartItem = cartMap.get(item.id); // wont happen
+        return {
+          id: item.id,
+          title: item.title,
+          image: item.image,
+          price: item.price,
+          quantity: cartItem?.quantity || 0,
+          total: item.price * (cartItem?.quantity || 0),
+        };
+      });
+  }, [data, shoppingCartItemList]);
   const onCheckout = useCallback(() => {
     let total = 0;
     for (const item of cartData) {
-      total += item.price;
+      total += Math.max(0, item.total);
     }
     alert(`Thanks, total price is $${total}`);
   }, [cartData]);
   const onRemoveAll = useCallback(() => {
-    resetProductIdsInCart();
+    resetShoppingCartItemList();
     router.push("/");
-  }, [router, resetProductIdsInCart]);
+  }, [router, resetShoppingCartItemList]);
+  const onQuantityChange = useCallback(
+    (id: string, val: number) => {
+      setShoppingCartItemList((itemList) => {
+        const targetItem = itemList.find((item) => item.id === id);
+        if (targetItem) {
+          targetItem.quantity = val;
+          return [...itemList]; // to return new array to trigger re-render...
+        }
+        return itemList;
+      });
+    },
+    [setShoppingCartItemList]
+  );
   return (
     <Box display="flex" alignItems="center" flexDirection="column">
       <Typography variant="h1">Shopping Cart</Typography>
-      <Stack spacing={2} direction='row'>
+      <Stack spacing={2} direction="row">
         <Button variant="contained" onClick={onCheckout}>
           Checkout
         </Button>
@@ -60,15 +103,16 @@ export function ShoppingCart() {
           <TableBody>
             {cartData.map((item) => (
               <TableRow
-                key={item.title}
+                key={item.id}
                 sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
               >
-                <TableCell component="th" scope="row">
-                  <ProductTableCell title={item.title} image={item.image} />
-                </TableCell>
-                <TableCell align="right">${item.price}</TableCell>
-                <TableCell align="right">1</TableCell>
-                <TableCell align="right">${item.price}</TableCell>
+                <ProductTableCell title={item.title} image={item.image} />
+                <TableCell align="right">{item.price}</TableCell>
+                <QuantityTableCell
+                  value={item.quantity}
+                  onChange={(val) => onQuantityChange(item.id, val)}
+                />
+                <TableCell align="right">{item.total}</TableCell>
               </TableRow>
             ))}
           </TableBody>
